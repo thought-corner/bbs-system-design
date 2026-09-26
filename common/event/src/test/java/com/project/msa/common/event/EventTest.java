@@ -8,6 +8,7 @@ import com.project.msa.common.event.payload.ArticleDeletedEventPayload;
 import com.project.msa.common.event.payload.ArticleLikedEventPayload;
 import com.project.msa.common.event.payload.ArticleUnlikedEventPayload;
 import com.project.msa.common.event.payload.ArticleUpdatedEventPayload;
+import com.project.msa.common.event.payload.ArticleViewedEventPayload;
 import com.project.msa.common.event.payload.CommentCreatedEventPayload;
 import com.project.msa.common.event.payload.CommentDeletedEventPayload;
 import java.time.LocalDateTime;
@@ -107,5 +108,17 @@ class EventTest {
         Event<EventPayload> restored = Event.fromJson(unliked.toJson());
 
         assertThat(restored).isEqualTo(unliked);
+    }
+
+    @Test
+    @DisplayName("ArticleViewed 이벤트는 JSON으로 갔다 와도 같은 값이고 board-view 토픽으로 간다")
+    void articleViewedRoundTrip() {
+        Event<ArticleViewedEventPayload> viewed = Event.of(9L, EventType.ARTICLE_VIEWED, CREATED_AT,
+                new ArticleViewedEventPayload(10L, 300L));
+
+        Event<EventPayload> restored = Event.fromJson(viewed.toJson());
+
+        assertThat(restored).isEqualTo(viewed);
+        assertThat(restored.type().topic()).isEqualTo("board-view");
     }
 }

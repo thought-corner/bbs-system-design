@@ -5,6 +5,7 @@ import com.project.msa.common.event.payload.ArticleDeletedEventPayload;
 import com.project.msa.common.event.payload.ArticleLikedEventPayload;
 import com.project.msa.common.event.payload.ArticleUnlikedEventPayload;
 import com.project.msa.common.event.payload.ArticleUpdatedEventPayload;
+import com.project.msa.common.event.payload.ArticleViewedEventPayload;
 import com.project.msa.common.event.payload.CommentCreatedEventPayload;
 import com.project.msa.common.event.payload.CommentDeletedEventPayload;
 
@@ -16,7 +17,8 @@ public enum EventType {
     COMMENT_CREATED(CommentCreatedEventPayload.class, Topic.BOARD_COMMENT),
     COMMENT_DELETED(CommentDeletedEventPayload.class, Topic.BOARD_COMMENT),
     ARTICLE_LIKED(ArticleLikedEventPayload.class, Topic.BOARD_LIKE),
-    ARTICLE_UNLIKED(ArticleUnlikedEventPayload.class, Topic.BOARD_LIKE);
+    ARTICLE_UNLIKED(ArticleUnlikedEventPayload.class, Topic.BOARD_LIKE),
+    ARTICLE_VIEWED(ArticleViewedEventPayload.class, Topic.BOARD_VIEW);
 
     private final Class<? extends EventPayload> payloadClass;
     private final String topic;
@@ -39,6 +41,7 @@ public enum EventType {
         public static final String BOARD_ARTICLE = "board-article";
         public static final String BOARD_COMMENT = "board-comment";
         public static final String BOARD_LIKE = "board-like";
+        public static final String BOARD_VIEW = "board-view";
 
         private Topic() {
         }
