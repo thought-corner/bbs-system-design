@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.project.msa.common.event.payload.ArticleCreatedEventPayload;
 import com.project.msa.common.event.payload.ArticleDeletedEventPayload;
+import com.project.msa.common.event.payload.ArticleLikedEventPayload;
+import com.project.msa.common.event.payload.ArticleUnlikedEventPayload;
 import com.project.msa.common.event.payload.ArticleUpdatedEventPayload;
 import com.project.msa.common.event.payload.CommentCreatedEventPayload;
 import com.project.msa.common.event.payload.CommentDeletedEventPayload;
@@ -82,5 +84,28 @@ class EventTest {
         Event<EventPayload> restored = Event.fromJson(deleted.toJson());
 
         assertThat(restored).isEqualTo(deleted);
+    }
+
+    @Test
+    @DisplayName("ArticleLiked 이벤트는 JSON으로 갔다 와도 같은 값이고 board-like 토픽으로 간다")
+    void articleLikedRoundTrip() {
+        Event<ArticleLikedEventPayload> liked = Event.of(7L, EventType.ARTICLE_LIKED, CREATED_AT,
+                new ArticleLikedEventPayload(10L, 50L, 8L));
+
+        Event<EventPayload> restored = Event.fromJson(liked.toJson());
+
+        assertThat(restored).isEqualTo(liked);
+        assertThat(restored.type().topic()).isEqualTo("board-like");
+    }
+
+    @Test
+    @DisplayName("ArticleUnliked 이벤트는 JSON으로 갔다 와도 같은 값이다")
+    void articleUnlikedRoundTrip() {
+        Event<ArticleUnlikedEventPayload> unliked = Event.of(8L, EventType.ARTICLE_UNLIKED, MODIFIED_AT,
+                new ArticleUnlikedEventPayload(10L, 50L, 7L));
+
+        Event<EventPayload> restored = Event.fromJson(unliked.toJson());
+
+        assertThat(restored).isEqualTo(unliked);
     }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -22,13 +23,20 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class MessageRelay implements DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(MessageRelay.class);
+    private static final int SENDER_COUNT = 4;
 
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final TransactionTemplate transactionTemplate;
     private final OutboxRelayProperties properties;
     private final Clock clock;
-    private final ExecutorService afterCommitSender = Executors.newFixedThreadPool(4);
+    /**
+     * 같은 파티션 키의 이벤트는 늘 같은 단일 스레드로 보내 커밋 순서대로 나가게 한다.
+     * 스레드 풀 하나에 섞으면 한 게시글의 이벤트끼리 순서가 뒤바뀐다 (D11).
+     */
+    private final List<ExecutorService> orderedSenders = IntStream.range(0, SENDER_COUNT)
+            .mapToObj(sender -> Executors.newSingleThreadExecutor())
+            .toList();
 
     MessageRelay(OutboxRepository outboxRepository, KafkaTemplate<String, String> kafkaTemplate,
                  TransactionTemplate transactionTemplate, OutboxRelayProperties properties, Clock clock) {
@@ -43,7 +51,7 @@ public class MessageRelay implements DisposableBean {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void publishAfterCommit(OutboxSaved outboxSaved) {
         Outbox outbox = outboxSaved.outbox();
-        afterCommitSender.execute(() -> {
+        senderFor(outbox.partitionKey()).execute(() -> {
             if (send(outbox)) {
                 outboxRepository.delete(outbox.outboxId());
             }
@@ -79,8 +87,12 @@ public class MessageRelay implements DisposableBean {
         }
     }
 
+    private ExecutorService senderFor(long partitionKey) {
+        return orderedSenders.get(Math.floorMod(partitionKey, SENDER_COUNT));
+    }
+
     @Override
     public void destroy() {
-        afterCommitSender.shutdown();
+        orderedSenders.forEach(ExecutorService::shutdown);
     }
 }
