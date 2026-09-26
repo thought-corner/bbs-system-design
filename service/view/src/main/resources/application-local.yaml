@@ -1,0 +1,13 @@
+server:
+  port: 8084
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:13306/article_view?allowPublicKeyRetrieval=true&useSSL=false
+  kafka:
+    bootstrap-servers: localhost:19092
+  data:
+    redis:
+      port: 16379
+
+snowflake:
+  node-id: 4
