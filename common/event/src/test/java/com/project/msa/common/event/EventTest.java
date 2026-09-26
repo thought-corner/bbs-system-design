@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.project.msa.common.event.payload.ArticleCreatedEventPayload;
 import com.project.msa.common.event.payload.ArticleDeletedEventPayload;
 import com.project.msa.common.event.payload.ArticleUpdatedEventPayload;
+import com.project.msa.common.event.payload.CommentCreatedEventPayload;
+import com.project.msa.common.event.payload.CommentDeletedEventPayload;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,5 +59,28 @@ class EventTest {
 
         assertThatThrownBy(() -> Event.of(4L, EventType.ARTICLE_CREATED, CREATED_AT, deletedPayload))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("CommentCreated 이벤트는 JSON으로 갔다 와도 같은 값이고 board-comment 토픽으로 간다")
+    void commentCreatedRoundTrip() {
+        Event<CommentCreatedEventPayload> created = Event.of(5L, EventType.COMMENT_CREATED, CREATED_AT,
+                new CommentCreatedEventPayload(40L, 10L, "0000100000", false, 4L));
+
+        Event<EventPayload> restored = Event.fromJson(created.toJson());
+
+        assertThat(restored).isEqualTo(created);
+        assertThat(restored.type().topic()).isEqualTo("board-comment");
+    }
+
+    @Test
+    @DisplayName("CommentDeleted 이벤트는 JSON으로 갔다 와도 같은 값이다")
+    void commentDeletedRoundTrip() {
+        Event<CommentDeletedEventPayload> deleted = Event.of(6L, EventType.COMMENT_DELETED, MODIFIED_AT,
+                new CommentDeletedEventPayload(40L, 10L, "0000100000", true, 3L));
+
+        Event<EventPayload> restored = Event.fromJson(deleted.toJson());
+
+        assertThat(restored).isEqualTo(deleted);
     }
 }
