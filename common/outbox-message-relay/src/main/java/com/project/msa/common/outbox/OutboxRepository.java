@@ -55,8 +55,12 @@ class OutboxRepository {
                 .list();
     }
 
-    long countPending() {
-        return jdbcClient.sql("SELECT COUNT(*) FROM outbox").query(Long.class).single();
+    /** 최대 `limit`행까지만 센다. 적체가 그보다 크면 `limit`을 돌려준다. */
+    long countPendingUpTo(int limit) {
+        return jdbcClient.sql("SELECT COUNT(*) FROM (SELECT 1 FROM outbox LIMIT :limit) pending_rows")
+                .param("limit", limit)
+                .query(Long.class)
+                .single();
     }
 
     /** `idx_created_at` 인덱스의 첫 항목만 읽는다. */

@@ -18,10 +18,10 @@ class OutboxMetrics {
 
     private final MeterRegistry meterRegistry;
 
-    OutboxMetrics(MeterRegistry meterRegistry, OutboxRepository outboxRepository, Clock clock) {
+    OutboxMetrics(MeterRegistry meterRegistry, OutboxRepository outboxRepository, Clock clock, int pendingCountLimit) {
         this.meterRegistry = meterRegistry;
-        Gauge.builder("outbox.pending", outboxRepository, OutboxRepository::countPending)
-                .description("발행되지 않고 남은 outbox 행 수")
+        Gauge.builder("outbox.pending", outboxRepository, repository -> repository.countPendingUpTo(pendingCountLimit))
+                .description("발행되지 않고 남은 outbox 행 수 (최대 " + pendingCountLimit + "까지만 센다)")
                 .register(meterRegistry);
         Gauge.builder("outbox.oldest.age", outboxRepository, repository -> repository.findOldestCreatedAt()
                         .map(oldestCreatedAt -> Duration.between(oldestCreatedAt, LocalDateTime.now(clock)).toMillis() / 1000.0)

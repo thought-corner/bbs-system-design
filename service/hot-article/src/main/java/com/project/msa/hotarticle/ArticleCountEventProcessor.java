@@ -41,7 +41,9 @@ abstract class ArticleCountEventProcessor<T extends EventPayload> implements Hot
         hotArticleRedisRepository.findCreated(articleId).ifPresent(createdDay -> {
             CountApplyResult result = hotArticleRedisRepository.applyCount(articleId, createdDay.createdDate(), metric,
                     countOf.applyAsLong(event.payload()), event.eventId());
-            if (result == CountApplyResult.STALE) {
+            if (result == CountApplyResult.APPLIED) {
+                eventConsumeMetrics.recordApplied(event);
+            } else if (result == CountApplyResult.STALE) {
                 eventConsumeMetrics.recordStale(supportedType);
             }
         });

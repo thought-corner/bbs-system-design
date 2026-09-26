@@ -3,6 +3,7 @@ package com.project.msa.hotarticle;
 import com.project.msa.common.event.Event;
 import com.project.msa.common.event.EventType;
 import com.project.msa.common.event.payload.ArticleCreatedEventPayload;
+import com.project.msa.common.eventdispatcher.EventConsumeMetrics;
 import com.project.msa.hotarticle.HotArticleRedisRepository.ArticleCreatedDay;
 import org.springframework.stereotype.Component;
 
@@ -11,9 +12,12 @@ import org.springframework.stereotype.Component;
 class ArticleCreatedEventProcessor implements HotArticleEventProcessor<ArticleCreatedEventPayload> {
 
     private final HotArticleRedisRepository hotArticleRedisRepository;
+    private final EventConsumeMetrics eventConsumeMetrics;
 
-    ArticleCreatedEventProcessor(HotArticleRedisRepository hotArticleRedisRepository) {
+    ArticleCreatedEventProcessor(HotArticleRedisRepository hotArticleRedisRepository,
+            EventConsumeMetrics eventConsumeMetrics) {
         this.hotArticleRedisRepository = hotArticleRedisRepository;
+        this.eventConsumeMetrics = eventConsumeMetrics;
     }
 
     @Override
@@ -26,5 +30,6 @@ class ArticleCreatedEventProcessor implements HotArticleEventProcessor<ArticleCr
         ArticleCreatedEventPayload created = event.payload();
         hotArticleRedisRepository.saveCreated(created.articleId(),
                 new ArticleCreatedDay(created.createdAt().toLocalDate(), created.boardId()));
+        eventConsumeMetrics.recordApplied(event);
     }
 }

@@ -107,7 +107,7 @@ class ArticleReadMetricsTest {
         double staleAfterFirst = scrape().value("event_consume_stale_total", LIKED);
         articleReadEventHandler.handle(liked);
 
-        assertThat(scrape().value("event_consume_lag_seconds_count", LIKED)).isEqualTo(lagCountBefore + 2);
+        assertThat(scrape().value("event_consume_lag_seconds_count", LIKED)).isEqualTo(lagCountBefore + 1);
         assertThat(staleAfterFirst).isEqualTo(staleBefore);
         assertThat(scrape().value("event_consume_stale_total", LIKED)).isEqualTo(staleBefore + 1);
     }

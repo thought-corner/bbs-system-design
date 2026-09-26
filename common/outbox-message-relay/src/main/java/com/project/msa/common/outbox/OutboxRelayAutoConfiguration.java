@@ -41,9 +41,9 @@ public class OutboxRelayAutoConfiguration {
     /** 지표 저장소가 없는 앱(모니터링 모듈을 쓰지 않는 앱)에서도 뜨도록 메모리 저장소로 대신한다. */
     @Bean
     OutboxMetrics outboxMetrics(ObjectProvider<MeterRegistry> meterRegistry, OutboxRepository outboxRepository,
-                                ObjectProvider<Clock> clock) {
+                                ObjectProvider<Clock> clock, OutboxRelayProperties properties) {
         return new OutboxMetrics(meterRegistry.getIfAvailable(SimpleMeterRegistry::new), outboxRepository,
-                clock.getIfAvailable(Clock::systemDefaultZone));
+                clock.getIfAvailable(Clock::systemDefaultZone), properties.pendingCountLimit());
     }
 
     @Bean

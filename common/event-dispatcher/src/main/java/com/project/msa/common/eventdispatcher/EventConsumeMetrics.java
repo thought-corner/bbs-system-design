@@ -25,11 +25,14 @@ public class EventConsumeMetrics {
         this.systemClock = systemClock;
     }
 
-    /** 이벤트 발생에서 소비자가 반영을 마칠 때까지. 시계 차이로 음수가 나오면 0으로 본다. */
-    public void recordLag(Event<? extends EventPayload> event) {
+    /**
+     * 실제로 반영한 이벤트의 발생에서 반영을 마칠 때까지. 시계 차이로 음수가 나오면 0으로 본다.
+     * 버린 이벤트는 {@link #recordStale}로만 세고, 건너뛴(대상이 아닌) 이벤트는 어느 쪽에도 넣지 않는다.
+     */
+    public void recordApplied(Event<? extends EventPayload> event) {
         Duration lag = Duration.between(event.occurredAt(), LocalDateTime.now(systemClock));
         Timer.builder("event.consume.lag")
-                .description("이벤트 발생에서 소비자 반영까지")
+                .description("이벤트 발생에서 소비자 반영까지 (반영한 이벤트만)")
                 .tag("type", event.type().name())
                 .register(meterRegistry)
                 .record(lag.isNegative() ? Duration.ZERO : lag);

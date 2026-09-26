@@ -3,13 +3,9 @@ package com.project.msa.hotarticle;
 import com.project.msa.common.event.Event;
 import com.project.msa.common.event.EventPayload;
 import com.project.msa.common.event.EventType;
-import com.project.msa.common.eventdispatcher.EventConsumeMetrics;
 import com.project.msa.common.eventdispatcher.EventDispatcher;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import java.time.Clock;
 import java.util.List;
 import java.util.Set;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,22 +16,14 @@ import org.springframework.stereotype.Component;
 public class HotArticleEventHandler {
 
     private final EventDispatcher eventDispatcher;
-    private final EventConsumeMetrics eventConsumeMetrics;
 
-    @Autowired
-    HotArticleEventHandler(List<HotArticleEventProcessor<?>> processors, EventConsumeMetrics eventConsumeMetrics) {
-        this.eventDispatcher = new EventDispatcher(processors);
-        this.eventConsumeMetrics = eventConsumeMetrics;
-    }
-
-    /** 지표 없이 분배만 확인하는 테스트용. */
+    /** 반영·버림 지표는 반영 여부를 아는 처리기가 기록한다. */
     HotArticleEventHandler(List<HotArticleEventProcessor<?>> processors) {
-        this(processors, new EventConsumeMetrics(new SimpleMeterRegistry(), Clock.systemDefaultZone()));
+        this.eventDispatcher = new EventDispatcher(processors);
     }
 
     public void handle(Event<? extends EventPayload> event) {
         eventDispatcher.dispatch(event);
-        eventConsumeMetrics.recordLag(event);
     }
 
     Set<EventType> supportedTypes() {

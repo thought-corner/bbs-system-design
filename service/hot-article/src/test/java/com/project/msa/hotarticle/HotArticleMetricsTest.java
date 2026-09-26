@@ -58,9 +58,23 @@ class HotArticleMetricsTest {
         double staleAfterFirst = scrape().value("event_consume_stale_total", LIKED);
         hotArticleEventHandler.handle(liked);
 
-        assertThat(scrape().value("event_consume_lag_seconds_count", LIKED)).isEqualTo(lagCountBefore + 2);
+        assertThat(scrape().value("event_consume_lag_seconds_count", LIKED)).isEqualTo(lagCountBefore + 1);
         assertThat(staleAfterFirst).isEqualTo(staleBefore);
         assertThat(scrape().value("event_consume_stale_total", LIKED)).isEqualTo(staleBefore + 1);
+    }
+
+    @Test
+    @DisplayName("생성 이벤트를 받지 못한(후보가 아닌) 게시글의 이벤트는 반영 지연에도 버린 수에도 넣지 않는다")
+    void skipsNonCandidateEventsInMetrics() throws Exception {
+        Event<ArticleLikedEventPayload> notCandidateLike = Event.of(3L, EventType.ARTICLE_LIKED, CREATED_AT,
+                new ArticleLikedEventPayload(80_002L, 1L, 1L));
+        double lagCountBefore = scrape().value("event_consume_lag_seconds_count", LIKED);
+        double staleBefore = scrape().value("event_consume_stale_total", LIKED);
+
+        hotArticleEventHandler.handle(notCandidateLike);
+
+        assertThat(scrape().value("event_consume_lag_seconds_count", LIKED)).isEqualTo(lagCountBefore);
+        assertThat(scrape().value("event_consume_stale_total", LIKED)).isEqualTo(staleBefore);
     }
 
     private PrometheusScrape scrape() throws Exception {

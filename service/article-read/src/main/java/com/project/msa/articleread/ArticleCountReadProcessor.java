@@ -36,7 +36,9 @@ abstract class ArticleCountReadProcessor<T extends EventPayload> implements Arti
     public void process(Event<T> event) {
         boolean applied = articleReadRedisRepository.applyCount(articleIdOf.applyAsLong(event.payload()), countField,
                 countOf.applyAsLong(event.payload()), event.eventId());
-        if (!applied) {
+        if (applied) {
+            eventConsumeMetrics.recordApplied(event);
+        } else {
             eventConsumeMetrics.recordStale(supportedType);
         }
     }

@@ -28,7 +28,9 @@ class ArticleDeletedReadProcessor implements ArticleReadEventProcessor<ArticleDe
     public void process(Event<ArticleDeletedEventPayload> event) {
         ArticleDeletedEventPayload deleted = event.payload();
         boolean applied = articleReadRedisRepository.applyDeleted(deleted.articleId(), deleted.boardId(), event.eventId());
-        if (!applied) {
+        if (applied) {
+            eventConsumeMetrics.recordApplied(event);
+        } else {
             eventConsumeMetrics.recordStale(supportedType());
         }
         articleReadRedisRepository.applyBoardArticleCount(deleted.boardId(), deleted.boardArticleCount(),

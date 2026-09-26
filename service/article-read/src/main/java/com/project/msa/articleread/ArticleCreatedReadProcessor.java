@@ -36,7 +36,9 @@ class ArticleCreatedReadProcessor implements ArticleReadEventProcessor<ArticleCr
         boolean applied = articleReadRedisRepository.applyCreated(new ArticleBody(created.articleId(), created.boardId(),
                 created.writerId(), created.title(), created.content(), created.createdAt(), created.modifiedAt()),
                 event.eventId(), clock.instant().plus(properties.logicalTtl()));
-        if (!applied) {
+        if (applied) {
+            eventConsumeMetrics.recordApplied(event);
+        } else {
             eventConsumeMetrics.recordStale(supportedType());
         }
         articleReadRedisRepository.applyBoardArticleCount(created.boardId(), created.boardArticleCount(),

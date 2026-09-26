@@ -30,7 +30,9 @@ class ArticleUpdatedReadProcessor implements ArticleReadEventProcessor<ArticleUp
         boolean applied = articleReadRedisRepository.applyUpdated(new ArticleBody(updated.articleId(), updated.boardId(),
                 updated.writerId(), updated.title(), updated.content(), updated.createdAt(), updated.modifiedAt()),
                 event.eventId());
-        if (!applied) {
+        if (applied) {
+            eventConsumeMetrics.recordApplied(event);
+        } else {
             eventConsumeMetrics.recordStale(supportedType());
         }
     }
