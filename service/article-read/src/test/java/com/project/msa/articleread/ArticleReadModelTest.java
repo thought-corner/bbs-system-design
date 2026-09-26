@@ -2,6 +2,9 @@ package com.project.msa.articleread;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.endsWith;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,6 +38,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.core.type.TypeReference;
@@ -62,6 +67,9 @@ class ArticleReadModelTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private MockRestServiceServer originServer;
 
     @Test
     @DisplayName("ArticleCreated를 받으면 상세에 게시글 필드가 그대로 나오고 댓글·좋아요 수는 0이다")
@@ -153,6 +161,9 @@ class ArticleReadModelTest {
 
         handle(liked(articleId, 4L));
         handle(commented(articleId, 2L));
+        originServer.reset();
+        originServer.expect(requestTo(endsWith(articlePath(boardId, articleId))))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
         mockMvc.perform(get(articlePath(boardId, articleId))).andExpect(status().isNotFound());
         handle(created);
 

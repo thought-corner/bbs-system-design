@@ -2,6 +2,7 @@ package com.project.msa.articleread;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ class ArticleReadRedisRepository {
     private static final RedisScript<Long> APPLY_CREATED = script("apply-created.lua");
     private static final RedisScript<Long> APPLY_DELETED = script("apply-deleted.lua");
     private static final RedisScript<Long> APPLY_BOARD_ARTICLE_COUNT = script("apply-board-article-count.lua");
+    private static final RedisScript<Long> FILL_FROM_ORIGIN = script("fill-from-origin.lua");
     private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     private final StringRedisTemplate redisTemplate;
@@ -40,6 +42,10 @@ class ArticleReadRedisRepository {
         return "article-read::article::" + articleId;
     }
 
+    static String refreshLockKey(long articleId) {
+        return articleKey(articleId) + "::refresh-lock";
+    }
+
     static String boardArticleListKey(long boardId) {
         return "article-read::board::" + boardId + "::article-list";
     }
@@ -52,12 +58,33 @@ class ArticleReadRedisRepository {
         return boardArticleCountKey(boardId) + "::last-event-id";
     }
 
-    void applyCreated(ArticleBody body, long eventId) {
+    void applyCreated(ArticleBody body, long eventId, Instant logicalExpiresAt) {
         redisTemplate.execute(APPLY_CREATED,
                 List.of(articleKey(body.articleId()), boardArticleListKey(body.boardId())),
                 ArticleReadField.ARTICLE.field(), JSON_MAPPER.writeValueAsString(body),
                 ArticleReadField.ARTICLE.eventIdField(), String.valueOf(eventId), ttlSeconds(),
-                String.valueOf(body.articleId()), String.valueOf(BOARD_ARTICLE_LIST_SIZE));
+                String.valueOf(body.articleId()), String.valueOf(BOARD_ARTICLE_LIST_SIZE),
+                String.valueOf(logicalExpiresAt.toEpochMilli()));
+    }
+
+    /** 원본 값을 쓰되, 스냅숏을 읽은 뒤 이벤트로 바뀐 필드는 건드리지 않는다. */
+    void fillFromOrigin(ArticleReadSnapshot snapshot, ArticleBody body, long commentCount, long likeCount,
+                        Instant logicalExpiresAt) {
+        redisTemplate.execute(FILL_FROM_ORIGIN, List.of(articleKey(body.articleId())),
+                JSON_MAPPER.writeValueAsString(body), snapshot.eventIdOf(ArticleReadField.ARTICLE),
+                String.valueOf(commentCount), snapshot.eventIdOf(ArticleReadField.COMMENT_COUNT),
+                String.valueOf(likeCount), snapshot.eventIdOf(ArticleReadField.LIKE_COUNT),
+                String.valueOf(logicalExpiresAt.toEpochMilli()), ttlSeconds());
+    }
+
+    /** 획득과 만료를 `SET NX EX` 한 명령으로 한다. 원본으로 맞추는 요청을 하나만 고른다 (D13). */
+    boolean tryRefreshLock(long articleId, Duration lockTtl) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(refreshLockKey(articleId), "", lockTtl));
+    }
+
+    ArticleReadSnapshot findSnapshot(long articleId) {
+        Map<String, String> fields = redisTemplate.<String, String>opsForHash().entries(articleKey(articleId));
+        return new ArticleReadSnapshot(fields == null ? Map.of() : fields, toResponse(fields));
     }
 
     void applyUpdated(ArticleBody body, long eventId) {
@@ -140,8 +167,17 @@ class ArticleReadRedisRepository {
     }
 
     long findBoardArticleCount(long boardId) {
-        String count = redisTemplate.opsForValue().get(boardArticleCountKey(boardId));
-        return count == null ? 0L : Long.parseLong(count);
+        return findKnownBoardArticleCount(boardId).orElse(0L);
+    }
+
+    /** 게시글 이벤트를 한 번도 받지 못한 게시판은 게시글 수를 모른다. */
+    Optional<Long> findKnownBoardArticleCount(long boardId) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(boardArticleCountKey(boardId))).map(Long::valueOf);
+    }
+
+    long countBoardArticleList(long boardId) {
+        Long size = redisTemplate.opsForZSet().size(boardArticleListKey(boardId));
+        return size == null ? 0L : size;
     }
 
     private Optional<ArticleReadResponse> toResponse(Map<String, String> fields) {

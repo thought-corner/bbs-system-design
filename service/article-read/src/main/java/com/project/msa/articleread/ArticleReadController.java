@@ -19,8 +19,9 @@ class ArticleReadController {
     }
 
     @GetMapping("/{articleId}")
-    ArticleReadResponse read(@PathVariable long boardId, @PathVariable long articleId) {
-        return articleReadService.read(boardId, articleId);
+    ArticleReadDetailResponse read(@PathVariable long boardId, @PathVariable long articleId,
+                                   @RequestParam(required = false) Long userId) {
+        return articleReadService.read(boardId, articleId, userId);
     }
 
     @GetMapping

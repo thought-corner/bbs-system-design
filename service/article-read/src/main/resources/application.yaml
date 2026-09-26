@@ -10,3 +10,13 @@ spring:
     consumer:
       group-id: article-read
       auto-offset-reset: earliest
+
+article-read:
+  # 원본에서 채운 읽기 모델을 이 시간이 지나면 다시 원본과 맞춘다 (D13)
+  logical-ttl: 10m
+  refresh-lock-ttl: 3s
+  origin:
+    article-url: http://localhost:8081
+    comment-url: http://localhost:8082
+    like-url: http://localhost:8083
+    view-url: http://localhost:8084
