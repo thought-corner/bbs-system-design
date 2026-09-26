@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: hot-article
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: hot-article
+      auto-offset-reset: earliest
+
+hot-article:
+  like-weight: 3
+  comment-weight: 2
+  view-weight: 1
+  top-count: 10
+  zone: Asia/Seoul
+  # 전날 목록을 확정하는 시각(시). 늦게 도착하는 전날 이벤트를 1시간 기다린다 (D14)
+  confirm-hour: 1
