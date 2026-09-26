@@ -1,3 +1,6 @@
 rootProject.name = 'msa'
 
 include 'common:snowflake'
+include 'common:event'
+include 'common:outbox-message-relay'
+include 'service:article'

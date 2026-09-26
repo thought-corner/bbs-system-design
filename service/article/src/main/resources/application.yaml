@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: article
+  datasource:
+    url: jdbc:mysql://localhost:3306/article
+    username: root
+    password: root
+  kafka:
+    bootstrap-servers: localhost:9092
+  sql:
+    init:
+      mode: always
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+
+snowflake:
+  node-id: 0
