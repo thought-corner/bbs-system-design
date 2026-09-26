@@ -48,4 +48,12 @@ class CommentController {
                                      @RequestParam(required = false) String lastPath) {
         return commentService.readScroll(articleId, pageSize, lastPath);
     }
+
+    @GetMapping("/count")
+    ArticleCommentCountResponse count(@PathVariable long articleId) {
+        return new ArticleCommentCountResponse(articleId, commentService.count(articleId));
+    }
+
+    record ArticleCommentCountResponse(Long articleId, Long commentCount) {
+    }
 }

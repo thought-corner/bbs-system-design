@@ -134,6 +134,11 @@ public class CommentService {
         return comments.stream().map(CommentResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public long count(long articleId) {
+        return countOnArticle(articleId);
+    }
+
     private boolean hasChildren(Comment comment) {
         return commentRepository.countSelfAndFirstChild(comment.getArticleId(), comment.getPath()) > 1;
     }

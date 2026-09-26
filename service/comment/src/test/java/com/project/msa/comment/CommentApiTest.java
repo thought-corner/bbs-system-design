@@ -251,6 +251,28 @@ class CommentApiTest {
                 .isInstanceOf(CommentPathLimitExceededException.class);
     }
 
+    @Test
+    @DisplayName("댓글 수 API는 삭제 표시를 뺀 게시글 댓글 수를 돌려준다")
+    void countApiReturnsArticleCommentCount() throws Exception {
+        long articleId = newArticle();
+        long untouchedArticleId = newArticle();
+        CommentResponse parent = write(articleId, null, "부모");
+        write(articleId, parent.commentId(), "자식");
+        write(articleId, null, "둘째 최상위");
+        mockMvc.perform(delete(commentPath(articleId, parent.commentId()))).andExpect(status().isOk());
+
+        assertThat(commentCount(articleId)).isEqualTo(2);
+        assertThat(commentCount(untouchedArticleId)).isZero();
+    }
+
+    private long commentCount(long articleId) throws Exception {
+        MvcResult result = mockMvc.perform(get("/v1/articles/" + articleId + "/comments/count"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readValue(result.getResponse().getContentAsString(),
+                CommentController.ArticleCommentCountResponse.class).commentCount();
+    }
+
     private long newArticle() {
         return ARTICLE_SEQUENCE.incrementAndGet();
     }
