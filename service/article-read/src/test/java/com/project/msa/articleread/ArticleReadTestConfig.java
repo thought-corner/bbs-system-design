@@ -1,0 +1,23 @@
+package com.project.msa.articleread;
+
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.kafka.KafkaContainer;
+
+@TestConfiguration(proxyBeanMethods = false)
+class ArticleReadTestConfig {
+
+    @Bean
+    @ServiceConnection
+    KafkaContainer kafkaContainer() {
+        return new KafkaContainer("apache/kafka-native:3.8.0");
+    }
+
+    @Bean
+    @ServiceConnection(name = "redis")
+    GenericContainer<?> redisContainer() {
+        return new GenericContainer<>("redis:7.4").withExposedPorts(6379);
+    }
+}

@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: article-read
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: article-read
+      auto-offset-reset: earliest
