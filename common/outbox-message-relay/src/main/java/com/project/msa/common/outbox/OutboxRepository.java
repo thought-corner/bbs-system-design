@@ -1,0 +1,62 @@
+package com.project.msa.common.outbox;
+
+import com.project.msa.common.event.EventType;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.jdbc.core.simple.JdbcClient;
+
+/**
+ * 비즈니스 트랜잭션에 참여하도록 같은 DataSource 위의 JdbcClient로 쓴다.
+ */
+class OutboxRepository {
+
+    private final JdbcClient jdbcClient;
+
+    OutboxRepository(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    void save(Outbox outbox) {
+        jdbcClient.sql("""
+                        INSERT INTO outbox (outbox_id, event_type, payload, partition_key, created_at)
+                        VALUES (:outboxId, :eventType, :payload, :partitionKey, :createdAt)
+                        """)
+                .param("outboxId", outbox.outboxId())
+                .param("eventType", outbox.eventType().name())
+                .param("payload", outbox.payload())
+                .param("partitionKey", outbox.partitionKey())
+                .param("createdAt", outbox.createdAt())
+                .update();
+    }
+
+    /**
+     * 다른 인스턴스가 잠근 행은 건너뛰어 한 행을 한 곳만 발행한다 (D11).
+     */
+    List<Outbox> lockPendingCreatedBefore(LocalDateTime pendingBefore, int limit) {
+        return jdbcClient.sql("""
+                        SELECT outbox_id, event_type, payload, partition_key, created_at
+                        FROM outbox
+                        WHERE created_at <= :pendingBefore
+                        ORDER BY created_at
+                        LIMIT :limit
+                        FOR UPDATE SKIP LOCKED
+                        """)
+                .param("pendingBefore", pendingBefore)
+                .param("limit", limit)
+                .query((rs, rowNum) -> new Outbox(
+                        rs.getLong("outbox_id"),
+                        EventType.valueOf(rs.getString("event_type")),
+                        rs.getString("payload"),
+                        rs.getLong("partition_key"),
+                        rs.getObject("created_at", LocalDateTime.class)))
+                .list();
+    }
+
+    void delete(long outboxId) {
+        jdbcClient.sql("DELETE FROM outbox WHERE outbox_id = :outboxId")
+                .param("outboxId", outboxId)
+                .update();
+    }
+}
