@@ -1,5 +1,6 @@
-# 데이터 노드용 compose. 앱 노드(k3s)의 파드가 이 노드의 사설 IP로 붙는다.
+# 데이터 노드용 compose. 앱 노드(k3s)의 파드가 이 노드의 사설 IP로 붙고, 부하 노드의 Prometheus가 exporter를 긁는다.
 #   MYSQL_ROOT_PASSWORD=<비밀번호> DATA_ADVERTISED_HOST=<이 노드 사설 IP> docker compose -f deploy/data/compose.yml up -d --wait
+# AWS에는 deploy/aws/render.sh가 만든 묶음(run.sh)으로 올린다.
 # 로컬 개발용 docker-compose.yml(board-e2e)과 프로젝트 이름을 나눈다.
 name: board-data
 
@@ -52,3 +53,44 @@ services:
       interval: 3s
       timeout: 10s
       retries: 40
+
+  # --- exporter (부하 노드 Prometheus가 긁는다. 보안 그룹이 부하 노드에서만 연다)
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    command: ["--mysqld.address=mysql:3306", "--mysqld.username=exporter"]
+    environment:
+      # docker/mysql/init.sql이 만드는 최소 권한 계정. 3306은 앱 노드에서만 열린다
+      MYSQLD_EXPORTER_PASSWORD: exporter
+    ports:
+      - "9104:9104"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    command: ["--kafka.server=kafka:9092"]
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # 호스트 CPU·메모리·디스크·네트워크. 호스트 네트워크로 9100을 연다
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    command: ["--path.rootfs=/host"]
+    network_mode: host
+    pid: host
+    volumes:
+      - /:/host:ro

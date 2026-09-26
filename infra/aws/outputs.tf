@@ -16,3 +16,11 @@ output "grafana_url" {
 output "ecr_repository_urls" {
   value = { for service, repository in aws_ecr_repository.service : service => repository.repository_url }
 }
+
+output "secret_parameter_names" {
+  description = "값 확인: aws ssm get-parameter --with-decryption --name <이름> --query Parameter.Value --output text"
+  value = {
+    mysql_password         = aws_ssm_parameter.mysql_password.name
+    grafana_admin_password = aws_ssm_parameter.grafana_admin_password.name
+  }
+}

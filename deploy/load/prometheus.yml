@@ -1,0 +1,50 @@
+# 부하 노드 Prometheus 설정. __APP_HOST__·__DATA_HOST__는 deploy/aws/render.sh가 노드 사설 IP로 바꾼다.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # 서비스 6개는 앱 노드 NodePort로 긁는다 (서비스마다 파드 1개일 때 파드 지표와 같다)
+  - job_name: board-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - __APP_HOST__:30081
+          - __APP_HOST__:30082
+          - __APP_HOST__:30083
+          - __APP_HOST__:30084
+          - __APP_HOST__:30085
+          - __APP_HOST__:30086
+        labels:
+          node: app
+
+  # 호스트 지표. node 라벨로 노드를 구별한다
+  - job_name: node
+    static_configs:
+      - targets: ["__APP_HOST__:30100"]
+        labels:
+          node: app
+      - targets: ["__DATA_HOST__:9100"]
+        labels:
+          node: data
+      - targets: ["host.docker.internal:9100"]
+        labels:
+          node: load
+
+  - job_name: mysql
+    static_configs:
+      - targets: ["__DATA_HOST__:9104"]
+        labels:
+          node: data
+
+  - job_name: redis
+    static_configs:
+      - targets: ["__DATA_HOST__:9121"]
+        labels:
+          node: data
+
+  - job_name: kafka
+    static_configs:
+      - targets: ["__DATA_HOST__:9308"]
+        labels:
+          node: data

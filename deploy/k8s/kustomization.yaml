@@ -11,3 +11,4 @@ resources:
   - view.yaml
   - hot-article.yaml
   - article-read.yaml
+  - node-exporter.yaml

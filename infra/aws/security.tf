@@ -52,6 +52,7 @@ locals {
     mysqld-exporter = 9104
     redis-exporter  = 9121
     kafka-exporter  = 9308
+    node-exporter   = 9100
   }
 }
 
