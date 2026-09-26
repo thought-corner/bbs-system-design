@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: like
+  labels:
+    app: like
+spec:
+  type: NodePort
+  selector:
+    app: like
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30083
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: like
+  labels:
+    app: like
+spec:
+  serviceName: like
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: like
+  template:
+    metadata:
+      labels:
+        app: like
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: like
+          image: board-perf/like
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: board-data
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: k8s
+            # 힙은 컨테이너 메모리 한도의 70%. 나머지는 메타스페이스·스레드 스택·다이렉트 버퍼 몫
+            - name: JAVA_OPTS
+              value: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+            - name: SNOWFLAKE_NODE_ID_BASE
+              value: "300"
+            - name: POD_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: board-mysql
+                  key: password
+          # CPU 한도는 두지 않는다. 한도에 걸린 스로틀링이 지연 지표를 흐린다
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          # 부하 중 GC 멈춤으로 재시작되지 않게 liveness는 느슨하게, readiness는 트래픽만 뺀다
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3

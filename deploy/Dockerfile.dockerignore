@@ -1,0 +1,4 @@
+# 빌드 산출물과 엔트리포인트만 컨텍스트로 보낸다 (소스·비밀·로컬 상태가 이미지에 들어가지 않게)
+*
+!service/*/build/libs/*.jar
+!deploy/entrypoint.sh
