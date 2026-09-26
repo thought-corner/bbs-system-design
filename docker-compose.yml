@@ -48,3 +48,57 @@ services:
       interval: 3s
       timeout: 10s
       retries: 40
+
+  # --- 모니터링 (서비스는 호스트 JVM으로 띄우고 Prometheus가 host.docker.internal로 긁는다) ---
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    command: ["--mysqld.address=mysql:3306", "--mysqld.username=exporter"]
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: exporter
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    command: ["--kafka.server=kafka:9092"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "13000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy

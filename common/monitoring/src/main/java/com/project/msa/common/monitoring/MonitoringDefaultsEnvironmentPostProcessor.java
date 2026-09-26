@@ -20,6 +20,8 @@ public class MonitoringDefaultsEnvironmentPostProcessor implements EnvironmentPo
             "management.metrics.tags.application", "${spring.application.name}",
             // p95·p99를 Prometheus에서 계산할 수 있게 응답 시간을 버킷으로 내보낸다
             "management.metrics.distribution.percentiles-histogram.http.server.requests", "true",
+            // 이벤트 반영 지연도 p95를 볼 수 있게 버킷으로 내보낸다
+            "management.metrics.distribution.percentiles-histogram.event.consume.lag", "true",
             // Tomcat 스레드 지표는 MBean에서 읽는다. Boot는 기본으로 MBean 등록을 꺼 두므로 켠다
             "server.tomcat.mbeanregistry.enabled", "true");
 

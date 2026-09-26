@@ -28,6 +28,8 @@ class MonitoringDefaultsEnvironmentPostProcessorTest {
         assertThat(environment.getProperty(
                 "management.metrics.distribution.percentiles-histogram.http.server.requests")).isEqualTo("true");
         assertThat(environment.getProperty("server.tomcat.mbeanregistry.enabled")).isEqualTo("true");
+        assertThat(environment.getProperty(
+                "management.metrics.distribution.percentiles-histogram.event.consume.lag")).isEqualTo("true");
     }
 
     @Test
