@@ -6,4 +6,6 @@ dependencies {
 	api project(':common:event')
 	// 처리기의 제네릭 타입을 등록 시점에 풀기 위한 ResolvableType
 	implementation 'org.springframework:spring-core'
+	// 소비 지연·버린 이벤트 지표
+	api 'io.micrometer:micrometer-core'
 }

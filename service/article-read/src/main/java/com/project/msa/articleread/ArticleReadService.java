@@ -20,11 +20,13 @@ public class ArticleReadService {
     private final ViewClient viewClient;
     private final ArticleReadProperties properties;
     private final Clock clock;
+    private final ArticleReadMetrics articleReadMetrics;
 
     ArticleReadService(ArticleReadRedisRepository articleReadRedisRepository, ArticleOriginClient articleOriginClient,
                        ArticleCountOriginClient articleCountOriginClient, ViewClient viewClient,
-                       ArticleReadProperties properties, Clock clock) {
+                       ArticleReadProperties properties, Clock clock, ArticleReadMetrics articleReadMetrics) {
         this.articleReadRedisRepository = articleReadRedisRepository;
+        this.articleReadMetrics = articleReadMetrics;
         this.articleOriginClient = articleOriginClient;
         this.articleCountOriginClient = articleCountOriginClient;
         this.viewClient = viewClient;
@@ -49,13 +51,28 @@ public class ArticleReadService {
             throw new ArticleNotFoundException(boardId, articleId);
         }
         if (cachedArticle.isPresent() && !snapshot.logicallyExpiredAt(clock.instant())) {
+            articleReadMetrics.recordSource(ArticleReadMetrics.READ_MODEL);
             return cachedArticle.get();
         }
-        if (articleReadRedisRepository.tryRefreshLock(articleId, properties.refreshLockTtl())) {
-            return refreshFromOrigin(boardId, articleId, snapshot);
+        if (tryRefreshLock(articleId)) {
+            ArticleReadResponse refreshedArticle = refreshFromOrigin(boardId, articleId, snapshot);
+            articleReadMetrics.recordSource(ArticleReadMetrics.ORIGIN_REFRESH);
+            return refreshedArticle;
         }
         // 다른 요청이 원본으로 맞추는 중이다. 기존 값이 있으면 그대로, 없으면 원본을 읽기만 한다
-        return cachedArticle.orElseGet(() -> readOriginWithoutWriting(boardId, articleId));
+        if (cachedArticle.isPresent()) {
+            articleReadMetrics.recordSource(ArticleReadMetrics.READ_MODEL);
+            return cachedArticle.get();
+        }
+        ArticleReadResponse originArticle = readOriginWithoutWriting(boardId, articleId);
+        articleReadMetrics.recordSource(ArticleReadMetrics.ORIGIN_PASSTHROUGH);
+        return originArticle;
+    }
+
+    private boolean tryRefreshLock(long articleId) {
+        boolean acquired = articleReadRedisRepository.tryRefreshLock(articleId, properties.refreshLockTtl());
+        articleReadMetrics.recordRefreshLock(acquired);
+        return acquired;
     }
 
     private ArticleReadResponse refreshFromOrigin(long boardId, long articleId, ArticleReadSnapshot snapshot) {
@@ -132,7 +149,7 @@ public class ArticleReadService {
         ArticleReadSnapshot snapshot = articleReadRedisRepository.findSnapshot(body.articleId());
         long commentCount = articleCountOriginClient.readCommentCount(body.articleId());
         long likeCount = articleCountOriginClient.readLikeCount(body.articleId());
-        if (articleReadRedisRepository.tryRefreshLock(body.articleId(), properties.refreshLockTtl())) {
+        if (tryRefreshLock(body.articleId())) {
             articleReadRedisRepository.fillFromOrigin(snapshot, body, commentCount, likeCount, nextLogicalExpiry());
         }
         return ArticleReadResponse.of(body, commentCount, likeCount);

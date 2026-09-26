@@ -64,8 +64,7 @@ class HotArticleRedisRepository {
                 .map(json -> JSON_MAPPER.readValue(json, ArticleCreatedDay.class));
     }
 
-    /** @return 반영했으면 true, 생성일이 없거나 늦게 온 이벤트라 버렸으면 false */
-    boolean applyCount(long articleId, LocalDate createdDate, HotArticleMetric metric, long count, long eventId) {
+    CountApplyResult applyCount(long articleId, LocalDate createdDate, HotArticleMetric metric, long count, long eventId) {
         Long applied = redisTemplate.execute(APPLY_COUNT_SCRIPT,
                 List.of(countKey(articleId, metric), lastEventIdKey(articleId, metric),
                         countKey(articleId, HotArticleMetric.LIKE), countKey(articleId, HotArticleMetric.COMMENT),
@@ -75,7 +74,7 @@ class HotArticleRedisRepository {
                 String.valueOf(properties.likeWeight()), String.valueOf(properties.commentWeight()),
                 String.valueOf(properties.viewWeight()), String.valueOf(articleId),
                 String.valueOf(properties.topCount()));
-        return applied != null && applied == 1L;
+        return CountApplyResult.of(applied);
     }
 
     /** 생성일 키를 먼저 지워 뒤따르는 이벤트가 랭킹에 다시 넣지 못하게 한 뒤 랭킹에서 뺀다. */

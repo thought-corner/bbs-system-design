@@ -1,0 +1,10 @@
+plugins {
+	id 'java-library'
+	id 'java-test-fixtures'
+}
+
+dependencies {
+	// 이 모듈을 쓰는 서비스는 Actuator와 Prometheus 출력을 함께 얻는다
+	api 'org.springframework.boot:spring-boot-starter-actuator'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+}

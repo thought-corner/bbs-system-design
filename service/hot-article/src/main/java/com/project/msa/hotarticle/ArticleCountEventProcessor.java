@@ -3,6 +3,7 @@ package com.project.msa.hotarticle;
 import com.project.msa.common.event.Event;
 import com.project.msa.common.event.EventPayload;
 import com.project.msa.common.event.EventType;
+import com.project.msa.common.eventdispatcher.EventConsumeMetrics;
 import java.util.function.ToLongFunction;
 
 /**
@@ -16,10 +17,13 @@ abstract class ArticleCountEventProcessor<T extends EventPayload> implements Hot
     private final HotArticleMetric metric;
     private final ToLongFunction<T> articleIdOf;
     private final ToLongFunction<T> countOf;
+    private final EventConsumeMetrics eventConsumeMetrics;
 
     ArticleCountEventProcessor(HotArticleRedisRepository hotArticleRedisRepository, EventType supportedType,
-                               HotArticleMetric metric, ToLongFunction<T> articleIdOf, ToLongFunction<T> countOf) {
+                               HotArticleMetric metric, ToLongFunction<T> articleIdOf, ToLongFunction<T> countOf,
+                               EventConsumeMetrics eventConsumeMetrics) {
         this.hotArticleRedisRepository = hotArticleRedisRepository;
+        this.eventConsumeMetrics = eventConsumeMetrics;
         this.supportedType = supportedType;
         this.metric = metric;
         this.articleIdOf = articleIdOf;
@@ -34,7 +38,12 @@ abstract class ArticleCountEventProcessor<T extends EventPayload> implements Hot
     @Override
     public void process(Event<T> event) {
         long articleId = articleIdOf.applyAsLong(event.payload());
-        hotArticleRedisRepository.findCreated(articleId).ifPresent(createdDay -> hotArticleRedisRepository.applyCount(
-                articleId, createdDay.createdDate(), metric, countOf.applyAsLong(event.payload()), event.eventId()));
+        hotArticleRedisRepository.findCreated(articleId).ifPresent(createdDay -> {
+            CountApplyResult result = hotArticleRedisRepository.applyCount(articleId, createdDay.createdDate(), metric,
+                    countOf.applyAsLong(event.payload()), event.eventId());
+            if (result == CountApplyResult.STALE) {
+                eventConsumeMetrics.recordStale(supportedType);
+            }
+        });
     }
 }

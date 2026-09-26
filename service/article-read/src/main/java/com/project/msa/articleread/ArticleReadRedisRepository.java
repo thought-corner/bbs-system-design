@@ -58,13 +58,14 @@ class ArticleReadRedisRepository {
         return boardArticleCountKey(boardId) + "::last-event-id";
     }
 
-    void applyCreated(ArticleBody body, long eventId, Instant logicalExpiresAt) {
-        redisTemplate.execute(APPLY_CREATED,
+    /** @return 반영했으면 true, 늦게 왔거나 삭제된 게시글이라 버렸으면 false */
+    boolean applyCreated(ArticleBody body, long eventId, Instant logicalExpiresAt) {
+        return applied(redisTemplate.execute(APPLY_CREATED,
                 List.of(articleKey(body.articleId()), boardArticleListKey(body.boardId())),
                 ArticleReadField.ARTICLE.field(), JSON_MAPPER.writeValueAsString(body),
                 ArticleReadField.ARTICLE.eventIdField(), String.valueOf(eventId), ttlSeconds(),
                 String.valueOf(body.articleId()), String.valueOf(BOARD_ARTICLE_LIST_SIZE),
-                String.valueOf(logicalExpiresAt.toEpochMilli()));
+                String.valueOf(logicalExpiresAt.toEpochMilli())));
     }
 
     /** 원본 값을 쓰되, 스냅숏을 읽은 뒤 이벤트로 바뀐 필드는 건드리지 않는다. */
@@ -87,17 +88,17 @@ class ArticleReadRedisRepository {
         return new ArticleReadSnapshot(fields == null ? Map.of() : fields, toResponse(fields));
     }
 
-    void applyUpdated(ArticleBody body, long eventId) {
-        applyField(body.articleId(), ArticleReadField.ARTICLE, JSON_MAPPER.writeValueAsString(body), eventId);
+    boolean applyUpdated(ArticleBody body, long eventId) {
+        return applyField(body.articleId(), ArticleReadField.ARTICLE, JSON_MAPPER.writeValueAsString(body), eventId);
     }
 
-    void applyCount(long articleId, ArticleReadField countField, long count, long eventId) {
-        applyField(articleId, countField, String.valueOf(count), eventId);
+    boolean applyCount(long articleId, ArticleReadField countField, long count, long eventId) {
+        return applyField(articleId, countField, String.valueOf(count), eventId);
     }
 
-    void applyDeleted(long articleId, long boardId, long eventId) {
-        redisTemplate.execute(APPLY_DELETED, List.of(articleKey(articleId), boardArticleListKey(boardId)),
-                String.valueOf(eventId), ttlSeconds(), String.valueOf(articleId));
+    boolean applyDeleted(long articleId, long boardId, long eventId) {
+        return applied(redisTemplate.execute(APPLY_DELETED, List.of(articleKey(articleId), boardArticleListKey(boardId)),
+                String.valueOf(eventId), ttlSeconds(), String.valueOf(articleId)));
     }
 
     void applyBoardArticleCount(long boardId, long boardArticleCount, long eventId) {
@@ -106,9 +107,13 @@ class ArticleReadRedisRepository {
                 String.valueOf(boardArticleCount), String.valueOf(eventId));
     }
 
-    private void applyField(long articleId, ArticleReadField field, String value, long eventId) {
-        redisTemplate.execute(APPLY_FIELD, List.of(articleKey(articleId)),
-                field.field(), value, field.eventIdField(), String.valueOf(eventId), ttlSeconds());
+    private boolean applyField(long articleId, ArticleReadField field, String value, long eventId) {
+        return applied(redisTemplate.execute(APPLY_FIELD, List.of(articleKey(articleId)),
+                field.field(), value, field.eventIdField(), String.valueOf(eventId), ttlSeconds()));
+    }
+
+    private static boolean applied(Long scriptResult) {
+        return scriptResult != null && scriptResult == 1L;
     }
 
     private String ttlSeconds() {

@@ -30,6 +30,7 @@ public class MessageRelay implements DisposableBean {
     private final TransactionTemplate transactionTemplate;
     private final OutboxRelayProperties properties;
     private final Clock clock;
+    private final OutboxMetrics outboxMetrics;
     /**
      * 같은 파티션 키의 이벤트는 늘 같은 단일 스레드로 보내 커밋 순서대로 나가게 한다.
      * 스레드 풀 하나에 섞으면 한 게시글의 이벤트끼리 순서가 뒤바뀐다 (D11).
@@ -39,8 +40,10 @@ public class MessageRelay implements DisposableBean {
             .toList();
 
     MessageRelay(OutboxRepository outboxRepository, KafkaTemplate<String, String> kafkaTemplate,
-                 TransactionTemplate transactionTemplate, OutboxRelayProperties properties, Clock clock) {
+                 TransactionTemplate transactionTemplate, OutboxRelayProperties properties, Clock clock,
+                 OutboxMetrics outboxMetrics) {
         this.outboxRepository = outboxRepository;
+        this.outboxMetrics = outboxMetrics;
         this.kafkaTemplate = kafkaTemplate;
         this.transactionTemplate = transactionTemplate;
         this.properties = properties;
@@ -52,7 +55,9 @@ public class MessageRelay implements DisposableBean {
     void publishAfterCommit(OutboxSaved outboxSaved) {
         Outbox outbox = outboxSaved.outbox();
         senderFor(outbox.partitionKey()).execute(() -> {
-            if (send(outbox)) {
+            boolean published = send(outbox);
+            outboxMetrics.recordPublish(OutboxMetrics.AFTER_COMMIT, published);
+            if (published) {
                 outboxRepository.delete(outbox.outboxId());
             }
         });
@@ -65,7 +70,9 @@ public class MessageRelay implements DisposableBean {
             List<Outbox> pendingOutboxes =
                     outboxRepository.lockPendingCreatedBefore(pendingBefore, properties.pollBatchSize());
             for (Outbox pendingOutbox : pendingOutboxes) {
-                if (send(pendingOutbox)) {
+                boolean published = send(pendingOutbox);
+                outboxMetrics.recordPublish(OutboxMetrics.POLLING, published);
+                if (published) {
                     outboxRepository.delete(pendingOutbox.outboxId());
                 }
             }

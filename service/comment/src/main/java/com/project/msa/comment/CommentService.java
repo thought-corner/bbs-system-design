@@ -8,6 +8,8 @@ import com.project.msa.common.event.payload.CommentCreatedEventPayload;
 import com.project.msa.common.event.payload.CommentDeletedEventPayload;
 import com.project.msa.common.outbox.OutboxEventPublisher;
 import com.project.msa.common.snowflake.Snowflake;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,11 +35,15 @@ public class CommentService {
     private final TransactionTemplate transactionTemplate;
     private final Snowflake snowflake;
     private final Clock clock;
+    private final Counter pathConflictRetries;
 
     CommentService(CommentRepository commentRepository, ArticleCommentCountRepository articleCommentCountRepository,
                    OutboxEventPublisher outboxEventPublisher, PlatformTransactionManager transactionManager,
-                   Snowflake snowflake, Clock clock) {
+                   Snowflake snowflake, Clock clock, MeterRegistry meterRegistry) {
         this.commentRepository = commentRepository;
+        this.pathConflictRetries = Counter.builder("comment.path.conflict.retry")
+                .description("같은 부모에 동시 답글이 달려 경로를 다시 계산한 횟수 (D6)")
+                .register(meterRegistry);
         this.articleCommentCountRepository = articleCommentCountRepository;
         this.outboxEventPublisher = outboxEventPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -54,6 +60,7 @@ public class CommentService {
                 if (attempt >= MAX_PATH_CONFLICT_ATTEMPTS) {
                     throw pathConflict;
                 }
+                pathConflictRetries.increment();
             }
         }
     }

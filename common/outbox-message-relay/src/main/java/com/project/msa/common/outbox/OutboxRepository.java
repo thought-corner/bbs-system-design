@@ -4,6 +4,7 @@ import com.project.msa.common.event.EventType;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -52,6 +53,17 @@ class OutboxRepository {
                         rs.getLong("partition_key"),
                         rs.getObject("created_at", LocalDateTime.class)))
                 .list();
+    }
+
+    long countPending() {
+        return jdbcClient.sql("SELECT COUNT(*) FROM outbox").query(Long.class).single();
+    }
+
+    /** `idx_created_at` 인덱스의 첫 항목만 읽는다. */
+    Optional<LocalDateTime> findOldestCreatedAt() {
+        return jdbcClient.sql("SELECT created_at FROM outbox ORDER BY created_at LIMIT 1")
+                .query(LocalDateTime.class)
+                .optional();
     }
 
     void delete(long outboxId) {
