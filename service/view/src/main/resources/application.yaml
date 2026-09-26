@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: view
+  datasource:
+    url: jdbc:mysql://localhost:3306/article_view
+    username: root
+    password: root
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+  sql:
+    init:
+      mode: always
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+
+snowflake:
+  node-id: 0
+
+view:
+  backup-interval: 100
+  abuse-lock-ttl: 10m
