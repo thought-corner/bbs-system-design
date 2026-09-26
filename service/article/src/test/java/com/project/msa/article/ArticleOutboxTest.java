@@ -212,6 +212,28 @@ class ArticleOutboxTest {
         assertThat(outboxRowCount(lockedArticleId)).isZero();
     }
 
+    @Test
+    @DisplayName("한 게시글에 연달아 일어난 변경의 이벤트는 커밋 순서대로 도착한다")
+    void eventsOfOneArticleArriveInCommitOrder() {
+        long boardId = newBoard();
+        ArticleResponse written = write(boardId, "제목 0");
+        for (int revision = 1; revision <= 5; revision++) {
+            articleService.edit(boardId, written.articleId(), new ArticleUpdateRequest("제목 " + revision, "본문"));
+        }
+        articleService.delete(boardId, written.articleId());
+
+        awaitEvent(written.articleId(), EventType.ARTICLE_DELETED);
+        List<Event<EventPayload>> arrived = recordsFor(written.articleId(), ABSENCE_WINDOW);
+
+        assertThat(arrived).extracting(Event::type).containsExactly(
+                EventType.ARTICLE_CREATED,
+                EventType.ARTICLE_UPDATED, EventType.ARTICLE_UPDATED, EventType.ARTICLE_UPDATED,
+                EventType.ARTICLE_UPDATED, EventType.ARTICLE_UPDATED,
+                EventType.ARTICLE_DELETED);
+        assertThat(arrived.subList(1, 6)).extracting(event -> ((ArticleUpdatedEventPayload) event.payload()).title())
+                .containsExactly("제목 1", "제목 2", "제목 3", "제목 4", "제목 5");
+    }
+
     private long newBoard() {
         return BOARD_SEQUENCE.incrementAndGet();
     }
