@@ -16,6 +16,9 @@
 set -eu
 cd "$(dirname "$0")"
 : "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD가 없다}"
+# docker exec -e MYSQL_PWD 는 값 없이 이름만 넘겨 이 환경에서 읽게 한다 (프로세스 인자에 비밀번호가 보이지 않게)
+MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
+export MYSQL_PWD
 BOARDS="${SEED_BOARDS:-10}"
 PER_BOARD="${SEED_ARTICLES_PER_BOARD:-1000000}"
 HOT="${SEED_HOT_ARTICLES:-100000}"
@@ -28,7 +31,7 @@ EPOCH_MILLIS=1767225600000
 [ "$HOT" -le "$ARTICLES" ] || { echo "SEED_HOT_ARTICLES(${HOT})가 게시글 수(${ARTICLES})보다 크다" >&2; exit 1; }
 [ "$COMMENTS" -le 1000 ] && [ "$LIKES" -le 1000 ] || { echo "인기 글당 댓글·좋아요는 1,000개까지다 (게시글 시각 간격 안에 ID 시각을 둔다)" >&2; exit 1; }
 
-mysql_run() { docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "$MYSQL_CONTAINER" mysql -uroot -N -B "$@"; }
+mysql_run() { docker exec -i -e MYSQL_PWD "$MYSQL_CONTAINER" mysql -uroot -N -B "$@"; }
 scalar() { mysql_run -e "$1"; }
 started=$(date +%s)
 log() { echo "[$(( $(date +%s) - started ))s] $*"; }

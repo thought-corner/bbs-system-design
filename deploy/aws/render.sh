@@ -48,5 +48,8 @@ if grep -q '__[A-Z_]*_HOST__' "${OUT_DIR}/load/prometheus.yml"; then echo "prome
 cp -R "${SOURCE_DIR}/monitoring/grafana/provisioning" "${OUT_DIR}/load/grafana/provisioning"
 cp -R "${SOURCE_DIR}/monitoring/grafana/dashboards" "${OUT_DIR}/load/grafana/dashboards"
 cp "${SOURCE_DIR}/deploy/load/run.sh" "${OUT_DIR}/load/run.sh"
+# k6 실험과 앱 노드 주소 (k6/run.sh가 읽는다)
+cp -R "${SOURCE_DIR}/deploy/load/k6" "${OUT_DIR}/load/k6"
+printf 'APP_HOST=%s\n' "$APP_HOST" > "${OUT_DIR}/load/node.env"
 
 echo "묶음: ${OUT_DIR}/{app,data,load}"
