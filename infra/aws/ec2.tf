@@ -8,16 +8,19 @@ locals {
       instance_type  = var.app_instance_type
       security_group = aws_security_group.app.id
       user_data      = "app.sh"
+      volume_gb      = var.root_volume_gb
     }
     data = {
       instance_type  = var.data_instance_type
       security_group = aws_security_group.data.id
       user_data      = "docker.sh"
+      volume_gb      = var.data_root_volume_gb
     }
     load = {
       instance_type  = var.load_instance_type
       security_group = aws_security_group.load.id
       user_data      = "docker.sh"
+      volume_gb      = var.root_volume_gb
     }
   }
 }
@@ -42,7 +45,7 @@ resource "aws_instance" "node" {
 
   root_block_device {
     volume_type           = "gp3"
-    volume_size           = var.root_volume_gb
+    volume_size           = each.value.volume_gb
     delete_on_termination = true
     encrypted             = true
   }

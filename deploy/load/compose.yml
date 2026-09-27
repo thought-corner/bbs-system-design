@@ -31,6 +31,12 @@ services:
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    # 헬스체크가 있어야 run.sh의 --wait가 Grafana 기동 실패(프로비저닝 오류 등)를 잡는다
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
     depends_on:
       prometheus:
         condition: service_healthy

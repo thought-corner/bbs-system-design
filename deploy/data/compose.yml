@@ -7,6 +7,8 @@ name: board-data
 services:
   mysql:
     image: mysql:8.0
+    # 버퍼 풀 기본 128MB로는 거의 모든 조회가 디스크로 간다. 노드 메모리에 맞춰 render.sh가 정한다 (m7g.large 8GiB → 5G)
+    command: ["--innodb-buffer-pool-size=${MYSQL_BUFFER_POOL_SIZE:-5G}"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD를 지정한다}
     ports:

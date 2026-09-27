@@ -5,6 +5,6 @@ set -eu
 cd "$(dirname "$0")"
 . ./node.env
 : "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD가 없다}"
-export MYSQL_ROOT_PASSWORD DATA_ADVERTISED_HOST
+export MYSQL_ROOT_PASSWORD DATA_ADVERTISED_HOST MYSQL_BUFFER_POOL_SIZE
 docker compose -f compose.yml up -d --wait --wait-timeout 300 --remove-orphans
 docker compose -f compose.yml ps --format '{{.Service}} {{.Status}}'

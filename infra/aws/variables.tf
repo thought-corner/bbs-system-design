@@ -45,9 +45,15 @@ variable "load_instance_type" {
 }
 
 variable "root_volume_gb" {
-  description = "노드마다 gp3 루트 볼륨 크기"
+  description = "앱·부하 노드의 gp3 루트 볼륨 크기"
   type        = number
   default     = 30
+}
+
+variable "data_root_volume_gb" {
+  description = "데이터 노드의 gp3 루트 볼륨 크기. 게시글·댓글·좋아요 각 1,000만 건과 인덱스·Kafka 로그를 담는다"
+  type        = number
+  default     = 100
 }
 
 variable "service_names" {

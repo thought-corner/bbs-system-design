@@ -34,62 +34,25 @@ GRAFANA_PASSWORD_PARAMETER="$(json_field grafana_admin_password <<< "$SECRET_NAM
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 mkdir -p "${WORK_DIR}/src" "${WORK_DIR}/out"
-git -C "$ROOT_DIR" archive "$COMMIT" deploy docker/mysql monitoring/grafana | tar -x -C "${WORK_DIR}/src"
+git -C "$ROOT_DIR" archive "$COMMIT" deploy docker/mysql monitoring/grafana \
+  service/article/src/main/resources/schema.sql service/comment/src/main/resources/schema.sql \
+  service/like/src/main/resources/schema.sql service/view/src/main/resources/schema.sql | tar -x -C "${WORK_DIR}/src"
 APP_HOST="$APP_HOST" DATA_HOST="$DATA_HOST" REPO_PREFIX="$REPO_PREFIX" IMAGE_TAG="$IMAGE_TAG" \
   bash "${WORK_DIR}/src/deploy/aws/render.sh" "${WORK_DIR}/src" "${WORK_DIR}/out" >/dev/null
 
-# 노드에서 SecureString 파라미터를 읽어 환경 변수로 내보내는 셸 줄. 값이 아니라 이름만 담는다
-secret_env() {
-  printf '%s="$(aws ssm get-parameter --region %s --name %s --with-decryption --query Parameter.Value --output text)"; export %s' \
-    "$1" "$AWS_REGION" "$2" "$1"
-}
-
-# 묶음을 풀고 run.sh를 실행하는 SSM 명령을 보낸 뒤 끝날 때까지 기다린다
+# 묶음을 풀고 run.sh를 실행한다
 run_on_node() {
-  local role="$1" env_line="$2" instance_id payload request command_id status deadline
-  instance_id="$(json_field "$role" <<< "$INSTANCE_IDS")"
-  payload="$(tar -czf - -C "${WORK_DIR}/out/${role}" . | base64 | tr -d '\n')"
+  local role="$1" env_line="$2" payload
+  # macOS tar가 확장 속성을 ._* 파일로 함께 묶지 않게 한다 (Grafana가 ._board.yml을 설정으로 읽다 죽는다)
+  payload="$(COPYFILE_DISABLE=1 tar -czf - -C "${WORK_DIR}/out/${role}" . | base64 | tr -d '\n')"
   [ "${#payload}" -le "$MAX_PAYLOAD_BYTES" ] || fail "${role} 묶음이 SSM 한도를 넘는다 (${#payload}B > ${MAX_PAYLOAD_BYTES}B)"
-  request="${WORK_DIR}/${role}-request.json"
-  INSTANCE_ID="$instance_id" PAYLOAD="$payload" ENV_LINE="$env_line" TIMEOUT="$SSM_TIMEOUT_SECONDS" \
-    python3 - > "$request" <<'PY'
-import json, os
-instance_id, payload, env_line, timeout = (os.environ[k] for k in ("INSTANCE_ID", "PAYLOAD", "ENV_LINE", "TIMEOUT"))
-commands = [
-    "set -eu",
-    "rm -rf /opt/board.next && mkdir -p /opt/board.next",
-    f"echo '{payload}' | base64 -d | tar -xz -C /opt/board.next",
-    "rm -rf /opt/board && mv /opt/board.next /opt/board",
-    env_line,
-    "sh /opt/board/run.sh",
-]
-print(json.dumps({
-    "InstanceIds": [instance_id],
-    "DocumentName": "AWS-RunShellScript",
-    "TimeoutSeconds": int(timeout),
-    "Parameters": {"commands": commands, "executionTimeout": [timeout]},
-}))
-PY
-  echo "--- ${role} (${instance_id})"
-  command_id="$(aws ssm send-command --region "$AWS_REGION" --cli-input-json "file://${request}" \
-    --query Command.CommandId --output text)"
-  rm -f "$request"
-  deadline=$((SECONDS + SSM_TIMEOUT_SECONDS + 60))
-  while :; do
-    status="$(aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$command_id" \
-      --instance-id "$instance_id" --query Status --output text 2>/dev/null || echo Pending)"
-    case "$status" in
-      Success) break ;;
-      Failed|Cancelled|TimedOut|Cancelling)
-        aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$command_id" --instance-id "$instance_id" \
-          --query '[StandardOutputContent,StandardErrorContent]' --output text | tail -40 >&2
-        fail "${role} run.sh ${status}" ;;
-    esac
-    [ "$SECONDS" -lt "$deadline" ] || fail "${role} 명령이 끝나지 않는다 (${command_id})"
-    sleep 5
-  done
-  aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$command_id" --instance-id "$instance_id" \
-    --query StandardOutputContent --output text | tail -15
+  ssm_run "$role" "$(json_field "$role" <<< "$INSTANCE_IDS")" "$SSM_TIMEOUT_SECONDS" \
+    "set -eu" \
+    "rm -rf /opt/board.next && mkdir -p /opt/board.next" \
+    "echo '${payload}' | base64 -d | tar -xz --no-same-owner --exclude='._*' -C /opt/board.next" \
+    "rm -rf /opt/board && mv /opt/board.next /opt/board" \
+    "$env_line" \
+    "sh /opt/board/run.sh"
 }
 
 run_on_node data "$(secret_env MYSQL_ROOT_PASSWORD "$MYSQL_PASSWORD_PARAMETER")"

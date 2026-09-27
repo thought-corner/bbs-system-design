@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 노드별 배포 묶음(app·data·load)을 만든다. AWS·Docker를 부르지 않는 순수 로컬 작업이다.
 #   APP_HOST=<앱 사설 IP> DATA_HOST=<데이터 사설 IP> REPO_PREFIX=<저장소 접두사> IMAGE_TAG=<태그> \
-#     deploy/aws/render.sh <소스 디렉터리> <출력 디렉터리>
+#     [MYSQL_BUFFER_POOL_SIZE=<기본 5G>] deploy/aws/render.sh <소스 디렉터리> <출력 디렉터리>
 # 비밀 값은 묶음에 넣지 않는다. 각 노드의 run.sh가 실행 때 환경 변수로 받는다.
 set -euo pipefail
 SOURCE_DIR="${1:?소스 디렉터리}"
@@ -16,7 +16,14 @@ sed 's#\.\./\.\./docker/mysql/init\.sql#./init.sql#' "${SOURCE_DIR}/deploy/data/
 grep -q '\./init\.sql:' "${OUT_DIR}/data/compose.yml" || { echo "data compose의 init.sql 경로를 바꾸지 못했다" >&2; exit 1; }
 cp "${SOURCE_DIR}/docker/mysql/init.sql" "${OUT_DIR}/data/init.sql"
 cp "${SOURCE_DIR}/deploy/data/run.sh" "${OUT_DIR}/data/run.sh"
-printf 'DATA_ADVERTISED_HOST=%s\n' "$DATA_HOST" > "${OUT_DIR}/data/node.env"
+printf 'DATA_ADVERTISED_HOST=%s\nMYSQL_BUFFER_POOL_SIZE=%s\n' "$DATA_HOST" "${MYSQL_BUFFER_POOL_SIZE:-5G}" > "${OUT_DIR}/data/node.env"
+# 적재 스크립트와 서비스 스키마 (적재는 서비스 기동 전에도 테이블을 만들 수 있다)
+cp -R "${SOURCE_DIR}/deploy/data/seed" "${OUT_DIR}/data/seed"
+mkdir -p "${OUT_DIR}/data/seed/schema"
+cp "${SOURCE_DIR}/service/article/src/main/resources/schema.sql" "${OUT_DIR}/data/seed/schema/article.sql"
+cp "${SOURCE_DIR}/service/comment/src/main/resources/schema.sql" "${OUT_DIR}/data/seed/schema/comment.sql"
+cp "${SOURCE_DIR}/service/like/src/main/resources/schema.sql" "${OUT_DIR}/data/seed/schema/article_like.sql"
+cp "${SOURCE_DIR}/service/view/src/main/resources/schema.sql" "${OUT_DIR}/data/seed/schema/article_view.sql"
 
 # 앱 노드: 기준 매니페스트 + 이미지 저장소·태그를 바꾸는 오버레이
 cp -R "${SOURCE_DIR}/deploy/k8s" "${OUT_DIR}/app/k8s/base"
