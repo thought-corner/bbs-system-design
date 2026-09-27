@@ -19,7 +19,7 @@ export const options = {
 
 // 검사 표본은 쓰기 전에 읽기 모델을 채워 둔다(이벤트가 반영되는지 봐야 하므로). 실험이 길면 끝나기 8분 전에 채운다(stairsWithWarm)
 export function setup() {
-  const sample = hotSample(HOT_SAMPLE);
+  const sample = hotSample(HOT_SAMPLE, HOT_SAMPLE);
   if (PLAN.warmAt === 0) {
     warmReadModel(sample);
   }

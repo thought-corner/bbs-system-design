@@ -11,6 +11,8 @@ services:
       - --storage.tsdb.retention.time=7d
       # k6가 remote write로 부하 쪽 지표(응답 시간·실패율·정합성 불일치)를 보낸다
       - --web.enable-remote-write-receiver
+      # k6 응답 시간을 native histogram으로 받아 계단별 p95·p99를 계산한다 (트렌드 통계는 실험 시작부터의 누적값이다)
+      - --enable-feature=native-histograms
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus

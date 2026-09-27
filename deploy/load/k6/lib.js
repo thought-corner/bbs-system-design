@@ -107,12 +107,17 @@ export function seededArticleIds(body) {
   return ids;
 }
 
-// 인기 글 표본: 적재에서 댓글·좋아요를 몰아 준 가장 최근 적재 글들. 게시판마다 첫 페이지부터 고르게 모은다
-export function hotSample(size) {
+// 인기 글 표본: 적재에서 댓글·좋아요를 몰아 준 가장 최근 적재 글들. 게시판마다 첫 페이지부터 고르게 모은다.
+// offset만큼 앞의 적재 글을 건너뛴다. 실험마다 다른 offset을 써서, 앞 실험이 채운 읽기 모델이 뒤 실험의 정합성 검사를 무효로 만들지 않게 한다
+// (v1.0.0: 상세 조회가 채운 표본을 쓰기 혼합이 다시 써서 검사 조회 1,000건이 원본 다시 채우기로 갔다)
+export function hotSample(size, defaultOffset) {
+  const offset = Number(__ENV.SAMPLE_OFFSET || defaultOffset || 0);
   const perBoard = Math.ceil(size / BOARDS);
+  const skipPerBoard = Math.ceil(offset / BOARDS);
   const sample = [];
   for (let board = 1; board <= BOARDS; board++) {
     let page = 1;
+    let skipped = 0;
     let collected = 0;
     while (collected < perBoard) {
       const pageSize = 50;
@@ -122,7 +127,10 @@ export function hotSample(size) {
       if (res.status !== 200 || body.indexOf('"articleId"') < 0) {
         break;
       }
-      const ids = seededArticleIds(body).slice(0, perBoard - collected);
+      let ids = seededArticleIds(body);
+      const skip = Math.min(ids.length, skipPerBoard - skipped);
+      ids = ids.slice(skip, skip + perBoard - collected);
+      skipped += skip;
       ids.forEach((id) => sample.push({ id, board }));
       collected += ids.length;
       page++;
@@ -131,7 +139,9 @@ export function hotSample(size) {
   if (sample.length === 0) {
     throw new Error('인기 글 표본이 비었다 (적재를 먼저 한다)');
   }
-  return sample.slice(0, size);
+  const result = sample.slice(0, size);
+  console.log(`sample offset=${offset} first=${result[0].id} size=${result.length}`);
+  return result;
 }
 
 // 실행마다 다른 값. setup에서 한 번 정해 모든 VU가 함께 쓴다 (다시 돌려도 좋아요 중복·조회 잠금에 걸리지 않게)

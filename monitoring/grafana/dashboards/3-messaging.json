@@ -181,7 +181,7 @@
     {
       "type": "timeseries",
       "title": "컨슈머 랙",
-      "description": "컨슈머 그룹이 토픽 끝에서 얼마나 뒤처졌는지(메시지 수). 계속 늘면 소비가 발행을 못 따라간다",
+      "description": "소비 서비스(Kafka 클라이언트)가 보고하는, 맡은 파티션에서 가장 크게 뒤처진 메시지 수. 계속 늘면 소비가 발행을 못 따라간다. kafka-exporter의 컨슈머 그룹 랙은 음수가 나와 쓰지 않는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -218,8 +218,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (consumergroup, topic) (kafka_consumergroup_lag)",
-          "legendFormat": "{{consumergroup}} {{topic}}",
+          "expr": "max by (application) (kafka_consumer_fetch_manager_records_lag_max)",
+          "legendFormat": "{{application}}",
           "refId": "A"
         }
       ]

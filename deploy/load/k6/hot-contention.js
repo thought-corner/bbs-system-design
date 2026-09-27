@@ -5,7 +5,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 import {
-  BASE, SYSTEM_TAGS, WRITE_THRESHOLDS, hotSample, runSalt, uniqueUser, verifyConsistency, warmReadModel,
+  BASE, HOT_SAMPLE, SYSTEM_TAGS, WRITE_THRESHOLDS, hotSample, runSalt, uniqueUser, verifyConsistency, warmReadModel,
 } from './lib.js';
 
 const likeOk = new Counter('contention_like_ok');
@@ -36,7 +36,8 @@ function currentCounts(article) {
 }
 
 export function setup() {
-  const target = hotSample(1)[0];
+  // 쓰기 혼합(offset HOT_SAMPLE)이 건드리지 않은 글을 대상으로 한다
+  const target = hotSample(1, 2 * HOT_SAMPLE)[0];
   warmReadModel([target]);
   return { target, before: currentCounts(target), salt: runSalt() };
 }

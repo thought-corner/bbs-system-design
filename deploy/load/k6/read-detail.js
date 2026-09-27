@@ -18,7 +18,7 @@ export const options = {
 // 읽기 모델을 채우지 않고 시작한다(적재 직후의 차가운 캐시).
 // 쓰기가 없는 실험이라 teardown 검사는 읽기 경로가 수를 흐트러뜨리지 않는지만 보고, 원본 경유 검사 조회(consistency_unverified)는 참고로 남긴다
 export function setup() {
-  return { sample: hotSample(HOT_SAMPLE) };
+  return { sample: hotSample(HOT_SAMPLE, 0) };
 }
 
 export default function (data) {

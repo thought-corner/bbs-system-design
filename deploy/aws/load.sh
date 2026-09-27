@@ -15,7 +15,7 @@ load_ecr
 LOAD_INSTANCE="$(tf_output instance_ids | json_field load)"
 
 load_env="export TESTID=${TESTID}"
-for name in STAGES HOT_SAMPLE CONTENTION_ITERATIONS CONTENTION_VUS PRE_VUS MAX_VUS SEED_BOARDS CONSISTENCY_WAIT_SECONDS LOGICAL_TTL_SECONDS; do
+for name in STAGES HOT_SAMPLE SAMPLE_OFFSET CONTENTION_ITERATIONS CONTENTION_VUS PRE_VUS MAX_VUS SEED_BOARDS CONSISTENCY_WAIT_SECONDS LOGICAL_TTL_SECONDS; do
   value="${!name:-}"
   if [ -n "$value" ]; then
     [[ "$value" =~ ^[0-9a-z:,]+$ ]] || fail "${name} 값이 이상하다: ${value}"

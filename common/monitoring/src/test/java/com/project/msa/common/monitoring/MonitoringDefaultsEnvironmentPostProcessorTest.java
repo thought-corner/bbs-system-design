@@ -33,6 +33,17 @@ class MonitoringDefaultsEnvironmentPostProcessorTest {
     }
 
     @Test
+    @DisplayName("반영 지연 히스토그램은 30초 너머를 구별하도록 최대 기대값이 10분이다")
+    void extendsEventConsumeLagBucketsBeyondThirtySeconds() {
+        StandardEnvironment environment = new StandardEnvironment();
+
+        postProcessor.postProcessEnvironment(environment, new SpringApplication());
+
+        assertThat(environment.getProperty(
+                "management.metrics.distribution.maximum-expected-value.event.consume.lag")).isEqualTo("10m");
+    }
+
+    @Test
     @DisplayName("서비스 설정이 같은 키를 주면 서비스 값이 기본값을 이긴다")
     void serviceSettingOverridesDefault() {
         StandardEnvironment environment = new StandardEnvironment();
