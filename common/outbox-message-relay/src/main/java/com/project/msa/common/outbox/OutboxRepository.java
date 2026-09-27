@@ -70,9 +70,12 @@ class OutboxRepository {
                 .optional();
     }
 
-    void delete(long outboxId) {
-        jdbcClient.sql("DELETE FROM outbox WHERE outbox_id = :outboxId")
-                .param("outboxId", outboxId)
+    void deleteAll(List<Long> outboxIds) {
+        if (outboxIds.isEmpty()) {
+            return;
+        }
+        jdbcClient.sql("DELETE FROM outbox WHERE outbox_id IN (:outboxIds)")
+                .param("outboxIds", outboxIds)
                 .update();
     }
 }

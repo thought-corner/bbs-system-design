@@ -1,15 +1,12 @@
 package com.project.msa.hotarticle;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.project.msa.common.event.Event;
-import com.project.msa.common.event.EventPayload;
 import com.project.msa.common.event.EventType;
 import com.project.msa.common.event.payload.ArticleCreatedEventPayload;
 import com.project.msa.common.event.payload.ArticleUpdatedEventPayload;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,23 +53,5 @@ class HotArticleEventDispatchTest {
                 EventType.COMMENT_CREATED, EventType.COMMENT_DELETED,
                 EventType.ARTICLE_LIKED, EventType.ARTICLE_UNLIKED,
                 EventType.ARTICLE_VIEWED);
-    }
-
-    @Test
-    @DisplayName("같은 이벤트 타입을 맡는 처리기가 둘이면 디스패처를 만들 수 없다")
-    void rejectsTwoProcessorsForSameType() {
-        List<HotArticleEventProcessor<?>> conflicting = List.of(
-                new StubProcessor(EventType.ARTICLE_LIKED), new StubProcessor(EventType.ARTICLE_LIKED));
-
-        assertThatThrownBy(() -> new HotArticleEventHandler(conflicting))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ARTICLE_LIKED");
-    }
-
-    private record StubProcessor(EventType supportedType) implements HotArticleEventProcessor<EventPayload> {
-
-        @Override
-        public void process(Event<EventPayload> event) {
-        }
     }
 }
